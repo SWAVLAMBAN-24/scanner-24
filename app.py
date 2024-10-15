@@ -7,7 +7,7 @@ import io
 from datetime import datetime
 import os
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 if not GITHUB_TOKEN:
     try:
         from config import GITHUB_TOKEN
