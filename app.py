@@ -22,7 +22,6 @@ CSV_PATH = "qr_data.csv"
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
-# Function to scan QR code
 def scan_qr(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     qr_codes = decode(gray)
@@ -32,21 +31,16 @@ def scan_qr(image):
         return qr_data
     return None
 
-# Function to update GitHub database
 def update_database(data):
     try:
-        # Fetch existing file content
         file = repo.get_contents(CSV_PATH)
         content = file.decoded_content.decode()
         df = pd.read_csv(io.StringIO(content))
     except:
-        # If file doesn't exist, create a new DataFrame
         df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp'])
-    
-    # Parse QR data
+  
     name, id_type, id_number, pass_type = data.split(',')
-    
-    # Add new row
+   
     new_row = {
         'Name': name,
         'ID Type': id_type,
@@ -55,13 +49,11 @@ def update_database(data):
         'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     df = df.append(new_row, ignore_index=True)
-    
-    # Save updated DataFrame
+  
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
     repo.update_file(CSV_PATH, f"Update QR data - {datetime.now()}", csv_buffer.getvalue(), file.sha if 'file' in locals() else None)
 
-# Function to display results
 def display_results():
     try:
         file = repo.get_contents(CSV_PATH)
@@ -73,14 +65,13 @@ def display_results():
         for pass_type in pass_types:
             st.subheader(f"Pass Type: {pass_type}")
             filtered_df = df[df['Pass Type'] == pass_type].reset_index(drop=True)
-            filtered_df.index += 1  # Start index from 1
+            filtered_df.index += 1  
             st.dataframe(filtered_df)
             st.write(f"Total entries: {len(filtered_df)}")
             st.write("---")
     except:
         st.error("No data available or error fetching data.")
 
-# Streamlit app
 def main():
     st.title("QR Code Scanner")
     
@@ -88,27 +79,38 @@ def main():
         st.error("GitHub token not configured. Please set up the token securely.")
         return
 
-    uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+    # Add option to switch between file upload and camera scanning
+    scan_method = st.radio("Choose scanning method:", ("Upload Image", "Use Camera"))
+
+    if scan_method == "Upload Image":
+        uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
-        if st.button("Scan QR Code"):
-            qr_data = scan_qr(image)
+        if uploaded_file is not None:
+            image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
             
-            if qr_data:
-                st.success(f"QR Code scanned successfully: {qr_data}")
-                try:
-                    update_database(qr_data)
-                    st.success("Database updated successfully!")
-                except Exception as e:
-                    st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.error("No QR code found in the image.")
-    
+            if st.button("Scan QR Code"):
+                qr_data = scan_qr(image)
+                
+                if qr_data:
+                    st.success(f"QR Code scanned successfully: {qr_data}")
+                    try:
+                        update_database(qr_data)
+                        st.success("Database updated successfully!")
+                    except Exception as e:
+                        st.error(f"Failed to update database: {str(e)}")
+                else:
+                    st.error("No QR code found in the image.")
+    else:
+        st.write("Scan QR code using your device camera:")
+        scanned_code = qr_scanner()
+        if scanned_code:
+            st.success(f"QR Code scanned successfully: {scanned_code}")
+            try:
+                update_database(scanned_code)
+                st.success("Database updated successfully!")
+            except Exception as e:
+                st.error(f"Failed to update database: {str(e)}")
+
     if st.button("Display Results"):
         display_results()
-
-if __name__ == "__main__":
-    main()
