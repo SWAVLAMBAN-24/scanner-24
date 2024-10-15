@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import cv2
 import numpy as np
@@ -10,7 +8,6 @@ import io
 from datetime import datetime
 import os
 
-# GitHub setup
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 if not GITHUB_TOKEN:
     try:
@@ -19,7 +16,7 @@ if not GITHUB_TOKEN:
         st.error("GitHub token not found. Please set the GITHUB_TOKEN environment variable or create a config.py file.")
         st.stop()
 
-REPO_NAME = "your_username/your_private_repo"
+REPO_NAME = "SWAVLAMBAN-24/swavlamban-24"
 CSV_PATH = "qr_data.csv"
 
 g = Github(GITHUB_TOKEN)
