@@ -1,6 +1,7 @@
-streamlit==1.11.0
-opencv-python-headless==4.5.5.64
-pyzbar==0.1.8
-PyGithub==1.55
-pandas
-numpy
+streamlit==1.28.0
+opencv-python-headless==4.8.1.78
+pyzbar==0.1.9
+PyGithub==1.59.1
+pandas==2.1.2
+numpy==1.26.0
+altair==4.2.2
