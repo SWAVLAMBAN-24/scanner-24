@@ -1,7 +1,6 @@
 import streamlit as st
 import cv2
 import numpy as np
-from pyzbar.pyzbar import decode
 from github import Github
 import pandas as pd
 import io
@@ -23,12 +22,17 @@ g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
 def scan_qr(image):
+    # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    qr_codes = decode(gray)
     
-    if qr_codes:
-        qr_data = qr_codes[0].data.decode('utf-8')
-        return qr_data
+    # Initialize QR Code detector
+    qr_detector = cv2.QRCodeDetector()
+    
+    # Detect and decode
+    data, bbox, _ = qr_detector.detectAndDecode(gray)
+    
+    if data:
+        return data
     return None
 
 def update_database(data):
@@ -117,17 +121,11 @@ def main():
                     st.error("No QR code found in the image.")
     else:
         st.write("Scan QR code using your device camera:")
-        scanned_code = qr_scanner()
-        if scanned_code:
-            st.success(f"QR Code scanned successfully: {scanned_code}")
-            try:
-                success, message = update_database(scanned_code)
-                if success:
-                    st.success(message)
-                else:
-                    st.warning(message)
-            except Exception as e:
-                st.error(f"Failed to update database: {str(e)}")
+        # Implement camera scanning logic here
+        st.error("Camera scanning not implemented in this version.")
 
     if st.button("Display Results"):
         display_results()
+
+if __name__ == "__main__":
+    main()
