@@ -99,7 +99,7 @@ def process_uploaded_file(file):
 
 def process_image(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    st.image(image_rgb, caption="Captured Image", use_column_width=True)
+    #st.image(image_rgb, caption="Captured Image", use_column_width=True)
     qr_data = scan_qr(image)
     if qr_data:
         st.success(f"QR Code scanned successfully: {qr_data}")
