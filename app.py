@@ -38,6 +38,20 @@ class VideoTransformer(VideoTransformerBase):
         
         return img
 
+def scan_qr(image):
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Initialize QR Code detector
+    qr_detector = cv2.QRCodeDetector()
+    
+    # Detect and decode
+    data, bbox, _ = qr_detector.detectAndDecode(gray)
+    
+    if data:
+        return data
+    return None
+    
 def update_database(data):
     try:
         match = re.match(r"Name:\s*(.*)\s+ID Type:\s*(.*)\s+ID Number:\s*(.*)\s+Pass Type:\s*(.*)", data)
