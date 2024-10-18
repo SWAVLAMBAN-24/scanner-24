@@ -82,6 +82,7 @@ def update_database(data):
 def display_results():
     try:
         file = repo.get_contents(CSV_PATH)
+        st.info("Fetched file successfully from GitHub.")
         content = file.decoded_content.decode()
         df = pd.read_csv(io.StringIO(content))
         
@@ -94,8 +95,8 @@ def display_results():
             st.dataframe(filtered_df)
             st.write(f"Total entries: {len(filtered_df)}")
             st.write("---")
-    except:
-        st.error("No data available or error fetching data.")
+    except Exception as e:
+        st.error(f"No data available or error fetching data: {str(e)}")
 
 def main():
     st.title("QR Code Scanner")
