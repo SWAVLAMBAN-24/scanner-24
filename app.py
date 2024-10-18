@@ -151,22 +151,6 @@ def main():
                         st.error(f"Failed to update database: {str(e)}")
             else:
                 st.error("No QR code found in the image.")
-
-            '''if st.button("Scan QR Code"):
-                qr_data = scan_qr(image)
-                
-                if qr_data:
-                    st.success(f"QR Code scanned successfully: {qr_data}")
-                    try:
-                        success, message = update_database(qr_data)
-                        if success:
-                            st.success(message)
-                        else:
-                            st.warning(message)
-                    except Exception as e:
-                        st.error(f"Failed to update database: {str(e)}")
-                else:
-                    st.error("No QR code found in the image.")'''
     else:
         st.write("Start scanning using your camera below:")
 
