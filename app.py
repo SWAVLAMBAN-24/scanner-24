@@ -120,7 +120,7 @@ def main():
         st.error("GitHub token not configured. Please set up the token securely.")
         return
 
-    st.write("Use your camera to scan a QR code:")
+    st.write("Use your camera to scan a QR code")
     img_file_buffer = st.camera_input("Take a picture")
         
     if img_file_buffer is not None:
