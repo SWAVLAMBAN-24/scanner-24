@@ -137,6 +137,7 @@ def main():
             # Convert color space from BGR to RGB for proper display
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Display the image using Streamlit
+            qr_data = scan_qr(image)
             st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
             if qr_data:
                     st.success(f"QR Code scanned successfully: {qr_data}")
