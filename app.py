@@ -118,9 +118,9 @@ def main():
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
-            image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
             st.image(image, caption="Uploaded Image", use_column_width=True)
-            
+            image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
+                        
             if st.button("Scan QR Code"):
                 qr_data = scan_qr(image)
                 
