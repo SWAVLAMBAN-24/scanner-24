@@ -5,6 +5,7 @@ from github import Github
 import pandas as pd
 import io
 from datetime import datetime
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import re
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
@@ -21,19 +22,21 @@ CSV_PATH = "qr_data.csv"
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
-def scan_qr(image):
-    # Convert to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Initialize QR Code detector
-    qr_detector = cv2.QRCodeDetector()
-    
-    # Detect and decode
-    data, bbox, _ = qr_detector.detectAndDecode(gray)
-    
-    if data:
-        return data
-    return None
+class VideoTransformer(VideoTransformerBase):
+    def __init__(self):
+        self.qr_detector = cv2.QRCodeDetector()
+
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        
+        # Detect QR code
+        data, bbox, _ = self.qr_detector.detectAndDecode(img)
+        
+        # If QR code is detected, display it as info on the Streamlit app
+        if data:
+            st.session_state.qr_data = data  # Store the QR code data in session state
+        
+        return img
 
 def update_database(data):
     try:
@@ -104,42 +107,6 @@ def display_results():
     except Exception as e:
         st.error(f"No data available or error fetching data: {str(e)}")
 
-def camera_scan():
-    cap = cv2.VideoCapture(0)  # Use the default camera (0 is usually the default)
-
-    if not cap.isOpened():
-        st.error("Could not open the camera. Please check your camera settings.")
-        return None
-
-    qr_detector = cv2.QRCodeDetector()
-
-    st.write("Press 'q' to quit scanning when done.")
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Failed to capture an image from the camera.")
-            break
-
-        # Detect QR code in the current frame
-        data, bbox, _ = qr_detector.detectAndDecode(frame)
-        
-        # Display the video feed
-        cv2.imshow("Camera QR Code Scanner - Press 'q' to quit", frame)
-
-        if data:
-            cap.release()
-            cv2.destroyAllWindows()
-            return data
-
-        # Press 'q' to exit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-    return None
-
 def main():
     st.title("QR Code Scanner")
 
@@ -172,20 +139,22 @@ def main():
                 else:
                     st.error("No QR code found in the image.")
     else:
-        if st.button("Start Camera Scan"):
-            qr_data = camera_scan()
-            if qr_data:
-                st.success(f"QR Code scanned successfully: {qr_data}")
+        st.write("Start scanning using your camera below:")
+        webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
+
+        if "qr_data" in st.session_state and st.session_state.qr_data:
+            qr_data = st.session_state.qr_data
+            st.success(f"QR Code scanned successfully: {qr_data}")
+            if st.button("Update Database with QR Code"):
                 try:
                     success, message = update_database(qr_data)
                     if success:
                         st.success(message)
+                        del st.session_state.qr_data  # Clear QR code data after successful update
                     else:
                         st.warning(message)
                 except Exception as e:
                     st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.warning("No QR code detected. Please try again.")
 
     if st.button("Display Results"):
         display_results()
