@@ -5,7 +5,7 @@ from github import Github
 import pandas as pd
 import io
 from datetime import datetime
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, ClientSettings
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import re
 
 # GitHub token setup
@@ -54,15 +54,13 @@ def update_database(data):
             return False, "Invalid QR code format. Could not extract all required fields."
 
         name, id_type, id_number, pass_type = match.groups()
-        email = "unknown@example.com"  # Placeholder for email if not available
-        phone = "0000000000"  # Placeholder for phone if not available
-
+ 
         try:
             file = repo.get_contents(CSV_PATH)
             content = file.decoded_content.decode()
             df = pd.read_csv(io.StringIO(content))
         except:
-            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp', 'Email', 'Phone'])
+            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp'])
         
         existing_entry = df[(df['Name'] == name) & 
                             (df['ID Number'] == id_number) & 
@@ -76,8 +74,6 @@ def update_database(data):
             'ID Type': id_type,
             'ID Number': id_number,
             'Pass Type': pass_type,
-            'Email': email,
-            'Phone': phone,
             'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }])
         df = pd.concat([df, new_row], ignore_index=True)
@@ -137,9 +133,10 @@ def main():
             # Convert color space from BGR to RGB for proper display
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Display the image using Streamlit
-            qr_data = scan_qr(image)
             st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
-            if qr_data:
+            qr_data = scan_qr(image)
+                
+                if qr_data:
                     st.success(f"QR Code scanned successfully: {qr_data}")
                     try:
                         success, message = update_database(qr_data)
@@ -149,24 +146,20 @@ def main():
                             st.warning(message)
                     except Exception as e:
                         st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.error("No QR code found in the image.")
+                else:
+                    st.error("No QR code found in the image.")
     else:
         st.write("Start scanning using your camera below:")
-
-        client_settings = ClientSettings(
-            media_stream_constraints={
-                "video": True,
-                "audio": False,
-            }
-        )
         
         result = webrtc_streamer(
             key="example",
             mode=WebRtcMode.SENDRECV,
-            client_settings=client_settings,
             video_transformer_factory=VideoTransformer,
             async_transform=True,
+            media_stream_constraints={
+                "video": {"facingMode": "environment"},  # Use the back camera by default
+                "audio": False
+            }
         )
 
         if result and "qr_data" in st.session_state and st.session_state.qr_data:
