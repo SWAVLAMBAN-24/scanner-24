@@ -45,15 +45,15 @@ def update_database(data):
             return False, "Invalid QR code format. Could not extract all required fields."
 
         name, id_type, id_number, pass_type = match.groups()
-        email = "unknown@example.com"  # Placeholder for email if not available
-        phone = "0000000000"  # Placeholder for phone if not available
+        #email = "unknown@example.com"  # Placeholder for email if not available
+        #phone = "0000000000"  # Placeholder for phone if not available
 
         try:
             file = repo.get_contents(CSV_PATH)
             content = file.decoded_content.decode()
             df = pd.read_csv(io.StringIO(content))
         except:
-            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp', 'Email', 'Phone'])
+            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp'])
         
         existing_entry = df[(df['Name'] == name) & 
                             (df['ID Number'] == id_number) & 
@@ -66,9 +66,7 @@ def update_database(data):
             'Name': name,
             'ID Type': id_type,
             'ID Number': id_number,
-            'Pass Type': pass_type,
-            'Email': email,
-            'Phone': phone,
+            'Pass Type': pass_type, #'Email': email, 'Phone': phone,
             'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }])
         df = pd.concat([df, new_row], ignore_index=True)
