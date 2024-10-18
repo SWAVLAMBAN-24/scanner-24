@@ -130,46 +130,74 @@ def main():
         
         # JavaScript to access the camera and capture image
         js_code = """
-        async function getCamera() {
+        async function setupCamera() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             const video = document.createElement('video');
             video.srcObject = stream;
-            await video.play();
-            
+            video.setAttribute('playsinline', true); // required to tell iOS safari we don't want fullscreen
+            video.play();
+            return [video, stream];
+        }
+
+        async function takePhoto(video) {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            stream.getTracks().forEach(track => track.stop());
             return canvas.toDataURL('image/jpeg');
         }
-        const result = await getCamera();
-        return result;
+
+        let video, stream;
+        try {
+            [video, stream] = await setupCamera();
+            while (true) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second
+                const result = await takePhoto(video);
+                if (result) {
+                    stream.getTracks().forEach(track => track.stop());
+                    return result;
+                }
+            }
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            return null;
+        }
         """
         
+        if 'camera_result' not in st.session_state:
+            st.session_state.camera_result = None
+
         if st.button("Capture QR Code"):
-            result = st_javascript(js_code)
-            if result:
-                # Convert base64 to image
-                img_data = re.sub('^data:image/.+;base64,', '', result)
-                img_bytes = base64.b64decode(img_data)
-                img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-                
-                qr_data = scan_qr(img)
-                if qr_data:
-                    st.success(f"QR Code scanned successfully: {qr_data}")
-                    try:
-                        success, message = update_database(qr_data)
-                        if success:
-                            st.success(message)
-                        else:
-                            st.warning(message)
-                    except Exception as e:
-                        st.error(f"Failed to update database: {str(e)}")
-                else:
-                    st.error("No QR code found in the captured image.")
+            with st.spinner("Accessing camera..."):
+                result = st_javascript(js_code)
+                st.session_state.camera_result = result
+
+        if st.session_state.camera_result:
+            st.success("Image captured successfully!")
+            
+            # Convert base64 to image
+            img_data = re.sub('^data:image/.+;base64,', '', st.session_state.camera_result)
+            img_bytes = base64.b64decode(img_data)
+            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            
+            qr_data = scan_qr(img)
+            if qr_data:
+                st.success(f"QR Code scanned successfully: {qr_data}")
+                try:
+                    success, message = update_database(qr_data)
+                    if success:
+                        st.success(message)
+                    else:
+                        st.warning(message)
+                except Exception as e:
+                    st.error(f"Failed to update database: {str(e)}")
+            else:
+                st.error("No QR code found in the captured image.")
+                st.image(img, caption="Captured Image", use_column_width=True)
+
+            # Clear the camera result after processing
+            st.session_state.camera_result = None
 
     if st.button("Display Results"):
         display_results()
