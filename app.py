@@ -135,8 +135,7 @@ def main():
             # Display the image using Streamlit
             st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
             qr_data = scan_qr(image)
-                
-                if qr_data:
+            if qr_data:
                     st.success(f"QR Code scanned successfully: {qr_data}")
                     try:
                         success, message = update_database(qr_data)
@@ -147,7 +146,8 @@ def main():
                     except Exception as e:
                         st.error(f"Failed to update database: {str(e)}")
                 else:
-                    st.error("No QR code found in the image.")
+                    st.error("No QR code found in the image.")    
+                
     else:
         st.write("Start scanning using your camera below:")
         
