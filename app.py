@@ -6,6 +6,7 @@ import pandas as pd
 import io
 from datetime import datetime
 import os
+import re
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
 if not GITHUB_TOKEN:
@@ -35,49 +36,63 @@ def scan_qr(image):
         return data
     return None
 
+import re
+
 def update_database(data):
     try:
-        file = repo.get_contents(CSV_PATH)
-        content = file.decoded_content.decode()
-        df = pd.read_csv(io.StringIO(content))
-    except:
-        df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp', 'Email', 'Phone'])
+        # Use a regular expression to extract the fields from the scanned QR data.
+        match = re.match(r"Name:\s*(.*)\s+ID Type:\s*(.*)\s+ID Number:\s*(.*)\s+Pass Type:\s*(.*)", data)
+        if not match:
+            return False, "Invalid QR code format. Could not extract all required fields."
+
+        name, id_type, id_number, pass_type = match.groups()
+        email = "unknown@example.com"  # Placeholder for email if not available
+        phone = "0000000000"  # Placeholder for phone if not available
+
+        # Fetch the existing CSV content from GitHub
+        try:
+            file = repo.get_contents(CSV_PATH)
+            content = file.decoded_content.decode()
+            df = pd.read_csv(io.StringIO(content))
+        except:
+            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp', 'Email', 'Phone'])
+        
+        # Check for existing entry
+        existing_entry = df[(df['Name'] == name) & 
+                            (df['ID Number'] == id_number) & 
+                            (df['Pass Type'] == pass_type)]
+        
+        if not existing_entry.empty:
+            return False, "This QR code has already been scanned for this session."
+        
+        # Add the new entry
+        new_row = pd.DataFrame([{
+            'Name': name,
+            'ID Type': id_type,
+            'ID Number': id_number,
+            'Pass Type': pass_type,
+            'Email': email,
+            'Phone': phone,
+            'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)
+
+        # Update or create CSV file in GitHub
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        
+        try:
+            if 'file' in locals():
+                repo.update_file(CSV_PATH, f"Update QR data - {datetime.now()}", csv_buffer.getvalue(), file.sha)
+            else:
+                repo.create_file(CSV_PATH, f"Create QR data - {datetime.now()}", csv_buffer.getvalue())
+        except Exception as e:
+            return False, f"Failed to update GitHub: {str(e)}"
+        
+        return True, "Database updated successfully!"
     
-    name, id_type, id_number, pass_type, email, phone = data.split(',')
-    
-    existing_entry = df[(df['Name'] == name) & 
-                        (df['Phone'] == phone) & 
-                        (df['Email'] == email) & 
-                        (df['Pass Type'] == pass_type)]
-    
-    if not existing_entry.empty:
-        return False, "This QR code has already been scanned for this session."
-    
-    new_row = pd.DataFrame([{
-        'Name': name,
-        'ID Type': id_type,
-        'ID Number': id_number,
-        'Pass Type': pass_type,
-        'Email': email,
-        'Phone': phone,
-        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }])
-    df = pd.concat([df, new_row], ignore_index=True)
-    
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-    
-    try:
-        # If file exists, update it
-        if 'file' in locals():
-            repo.update_file(CSV_PATH, f"Update QR data - {datetime.now()}", csv_buffer.getvalue(), file.sha)
-        else:
-            # If file doesn't exist, create a new file
-            repo.create_file(CSV_PATH, f"Create QR data - {datetime.now()}", csv_buffer.getvalue())
     except Exception as e:
-        return False, f"Failed to update GitHub: {str(e)}"
-    
-    return True, "Database updated successfully!"
+        return False, f"Failed to update database: {str(e)}"
 
 def display_results():
     try:
