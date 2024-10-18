@@ -6,7 +6,6 @@ import pandas as pd
 import io
 from datetime import datetime
 import re
-from streamlit_javascript import st_javascript
 
 # GitHub token setup
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
@@ -94,6 +93,28 @@ def display_results():
     except Exception as e:
         st.error(f"No data available or error fetching data: {str(e)}")
 
+def process_uploaded_file(file):
+    bytes_data = file.getvalue()
+    nparr = np.frombuffer(bytes_data, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+def process_image(image):
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    st.image(image_rgb, caption="Captured Image", use_column_width=True)
+    qr_data = scan_qr(image)
+    if qr_data:
+        st.success(f"QR Code scanned successfully: {qr_data}")
+        try:
+            success, message = update_database(qr_data)
+            if success:
+                st.success(message)
+            else:
+                st.warning(message)
+        except Exception as e:
+            st.error(f"Failed to update database: {str(e)}")
+    else:
+        st.error("No QR code found in the image.")
+
 def main():
     st.title("QR Code Scanner")
 
@@ -107,97 +128,16 @@ def main():
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
-            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            image = cv2.imdecode(file_bytes, 1)
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
-            qr_data = scan_qr(image)
-            if qr_data:
-                st.success(f"QR Code scanned successfully: {qr_data}")
-                try:
-                    success, message = update_database(qr_data)
-                    if success:
-                        st.success(message)
-                    else:
-                        st.warning(message)
-                except Exception as e:
-                    st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.error("No QR code found in the image.")    
+            image = process_uploaded_file(uploaded_file)
+            process_image(image)
                 
     else:
-        st.write("Start scanning using your camera below:")
+        st.write("Use your camera to scan a QR code:")
+        img_file_buffer = st.camera_input("Take a picture")
         
-        # JavaScript to access the camera and capture image
-        js_code = """
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.setAttribute('playsinline', true); // required to tell iOS safari we don't want fullscreen
-            video.play();
-            return [video, stream];
-        }
-
-        async function takePhoto(video) {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            return canvas.toDataURL('image/jpeg');
-        }
-
-        let video, stream;
-        try {
-            [video, stream] = await setupCamera();
-            while (true) {
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second
-                const result = await takePhoto(video);
-                if (result) {
-                    stream.getTracks().forEach(track => track.stop());
-                    return result;
-                }
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            return null;
-        }
-        """
-        
-        if 'camera_result' not in st.session_state:
-            st.session_state.camera_result = None
-
-        if st.button("Capture QR Code"):
-            with st.spinner("Accessing camera..."):
-                result = st_javascript(js_code)
-                st.session_state.camera_result = result
-
-        if st.session_state.camera_result:
-            st.success("Image captured successfully!")
-            
-            # Convert base64 to image
-            img_data = re.sub('^data:image/.+;base64,', '', st.session_state.camera_result)
-            img_bytes = base64.b64decode(img_data)
-            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-            
-            qr_data = scan_qr(img)
-            if qr_data:
-                st.success(f"QR Code scanned successfully: {qr_data}")
-                try:
-                    success, message = update_database(qr_data)
-                    if success:
-                        st.success(message)
-                    else:
-                        st.warning(message)
-                except Exception as e:
-                    st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.error("No QR code found in the captured image.")
-                st.image(img, caption="Captured Image", use_column_width=True)
-
-            # Clear the camera result after processing
-            st.session_state.camera_result = None
+        if img_file_buffer is not None:
+            image = process_uploaded_file(img_file_buffer)
+            process_image(image)
 
     if st.button("Display Results"):
         display_results()
