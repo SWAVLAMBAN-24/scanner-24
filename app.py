@@ -92,10 +92,10 @@ def display_results():
     except Exception as e:
         st.error(f"No data available or error fetching data: {str(e)}")
 
-'''def process_uploaded_file(file):
+def process_uploaded_file(file):
     bytes_data = file.getvalue()
     nparr = np.frombuffer(bytes_data, np.uint8)
-    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)'''
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
 def process_image(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
