@@ -5,9 +5,10 @@ from github import Github
 import pandas as pd
 import io
 from datetime import datetime
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, ClientSettings
 import re
 
+# GitHub token setup
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
 if not GITHUB_TOKEN:
     try:
@@ -28,30 +29,24 @@ class VideoTransformer(VideoTransformerBase):
 
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        
         # Detect QR code
         data, bbox, _ = self.qr_detector.detectAndDecode(img)
-        
-        # If QR code is detected, display it as info on the Streamlit app
+        # If QR code is detected, store it in session state
         if data:
-            st.session_state.qr_data = data  # Store the QR code data in session state
-        
+            st.session_state.qr_data = data
         return img
 
 def scan_qr(image):
-    # Convert to grayscale
+    # Convert to grayscale for better detection
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
     # Initialize QR Code detector
     qr_detector = cv2.QRCodeDetector()
-    
     # Detect and decode
     data, bbox, _ = qr_detector.detectAndDecode(gray)
-    
     if data:
         return data
     return None
-    
+
 def update_database(data):
     try:
         match = re.match(r"Name:\s*(.*)\s+ID Type:\s*(.*)\s+ID Number:\s*(.*)\s+Pass Type:\s*(.*)", data)
@@ -59,15 +54,15 @@ def update_database(data):
             return False, "Invalid QR code format. Could not extract all required fields."
 
         name, id_type, id_number, pass_type = match.groups()
-        #email = "unknown@example.com"  # Placeholder for email if not available
-        #phone = "0000000000"  # Placeholder for phone if not available
+        email = "unknown@example.com"  # Placeholder for email if not available
+        phone = "0000000000"  # Placeholder for phone if not available
 
         try:
             file = repo.get_contents(CSV_PATH)
             content = file.decoded_content.decode()
             df = pd.read_csv(io.StringIO(content))
         except:
-            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp'])
+            df = pd.DataFrame(columns=['Name', 'ID Type', 'ID Number', 'Pass Type', 'Timestamp', 'Email', 'Phone'])
         
         existing_entry = df[(df['Name'] == name) & 
                             (df['ID Number'] == id_number) & 
@@ -80,7 +75,9 @@ def update_database(data):
             'Name': name,
             'ID Type': id_type,
             'ID Number': id_number,
-            'Pass Type': pass_type, #'Email': email, 'Phone': phone,
+            'Pass Type': pass_type,
+            'Email': email,
+            'Phone': phone,
             'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }])
         df = pd.concat([df, new_row], ignore_index=True)
@@ -137,7 +134,7 @@ def main():
             # Decode the image using OpenCV
             image = cv2.imdecode(file_bytes, 1)
 
-            # Convert color space from BGR to RGB for Streamlit display
+            # Convert color space from BGR to RGB for proper display
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Display the image using Streamlit
             st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
@@ -159,9 +156,23 @@ def main():
                     st.error("No QR code found in the image.")
     else:
         st.write("Start scanning using your camera below:")
-        webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
 
-        if "qr_data" in st.session_state and st.session_state.qr_data:
+        client_settings = ClientSettings(
+            media_stream_constraints={
+                "video": True,
+                "audio": False,
+            }
+        )
+        
+        result = webrtc_streamer(
+            key="example",
+            mode=WebRtcMode.SENDRECV,
+            client_settings=client_settings,
+            video_transformer_factory=VideoTransformer,
+            async_transform=True,
+        )
+
+        if result and "qr_data" in st.session_state and st.session_state.qr_data:
             qr_data = st.session_state.qr_data
             st.success(f"QR Code scanned successfully: {qr_data}")
             if st.button("Update Database with QR Code"):
