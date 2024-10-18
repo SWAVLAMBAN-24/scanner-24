@@ -7,7 +7,7 @@ import io
 from datetime import datetime
 import os
 
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
 if not GITHUB_TOKEN:
     try:
         from config import GITHUB_TOKEN
@@ -15,7 +15,7 @@ if not GITHUB_TOKEN:
         st.error("GitHub token not found. Please set the GITHUB_TOKEN environment variable or create a config.py file.")
         st.stop()
 
-"REPO_NAME = "SWAVLAMBAN-24/scanner-24""
+REPO_NAME = "SWAVLAMBAN-24/scanner-24"
 CSV_PATH = "qr_data.csv"
 
 g = Github(GITHUB_TOKEN)
@@ -53,7 +53,7 @@ def update_database(data):
     if not existing_entry.empty:
         return False, "This QR code has already been scanned for this session."
     
-    new_row = {
+    new_row = pd.DataFrame([{
         'Name': name,
         'ID Type': id_type,
         'ID Number': id_number,
@@ -61,12 +61,21 @@ def update_database(data):
         'Email': email,
         'Phone': phone,
         'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    df = df.append(new_row, ignore_index=True)
+    }])
+    df = pd.concat([df, new_row], ignore_index=True)
     
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
-    repo.update_file(CSV_PATH, f"Update QR data - {datetime.now()}", csv_buffer.getvalue(), file.sha if 'file' in locals() else None)
+    
+    try:
+        # If file exists, update it
+        if 'file' in locals():
+            repo.update_file(CSV_PATH, f"Update QR data - {datetime.now()}", csv_buffer.getvalue(), file.sha)
+        else:
+            # If file doesn't exist, create a new file
+            repo.create_file(CSV_PATH, f"Create QR data - {datetime.now()}", csv_buffer.getvalue())
+    except Exception as e:
+        return False, f"Failed to update GitHub: {str(e)}"
     
     return True, "Database updated successfully!"
 
