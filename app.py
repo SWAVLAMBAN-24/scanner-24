@@ -14,8 +14,7 @@ if not GITHUB_TOKEN:
     except ImportError:
         st.error("GitHub token not found. Please set the GITHUB_TOKEN environment variable or create a config.py file.")
         st.stop()
-st.write(f"Attempting to access repo: {REPO_OWNER}/{REPO_NAME}")
-st.write("Repository accessed successfully")
+
 REPO_NAME = "SWAVLAMBAN-24/scanner-24"
 CSV_PATH = "qr_data.csv"
 
