@@ -7,7 +7,6 @@ import io
 from datetime import datetime
 import re
 
-# GitHub token setup
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
 if not GITHUB_TOKEN:
     try:
