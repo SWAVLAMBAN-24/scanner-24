@@ -92,10 +92,10 @@ def display_results():
     except Exception as e:
         st.error(f"No data available or error fetching data: {str(e)}")
 
-def process_uploaded_file(file):
+'''def process_uploaded_file(file):
     bytes_data = file.getvalue()
     nparr = np.frombuffer(bytes_data, np.uint8)
-    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)'''
 
 def process_image(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -121,22 +121,22 @@ def main():
         st.error("GitHub token not configured. Please set up the token securely.")
         return
 
-    scan_method = st.radio("Choose scanning method:", ("Upload Image", "Use Camera"))
+    #scan_method = st.radio("Choose scanning method:", ("Upload Image", "Use Camera"))
 
-    if scan_method == "Upload Image":
+    '''if scan_method == "Upload Image":
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
             image = process_uploaded_file(uploaded_file)
             process_image(image)
                 
-    else:
-        st.write("Use your camera to scan a QR code:")
-        img_file_buffer = st.camera_input("Take a picture")
+    else:'''
+    st.write("Use your camera to scan a QR code:")
+    img_file_buffer = st.camera_input("Take a picture")
         
-        if img_file_buffer is not None:
-            image = process_uploaded_file(img_file_buffer)
-            process_image(image)
+    if img_file_buffer is not None:
+        image = process_uploaded_file(img_file_buffer)
+        process_image(image)
 
     if st.button("Display Results"):
         display_results()
