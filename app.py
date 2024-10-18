@@ -148,8 +148,8 @@ def main():
                             st.warning(message)
                     except Exception as e:
                         st.error(f"Failed to update database: {str(e)}")
-                else:
-                    st.error("No QR code found in the image.")
+            else:
+                st.error("No QR code found in the image.")
 
             '''if st.button("Scan QR Code"):
                 qr_data = scan_qr(image)
