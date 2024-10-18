@@ -118,18 +118,16 @@ def main():
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
+            # Read the file bytes once
             file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            # Decode the image using OpenCV
             image = cv2.imdecode(file_bytes, 1)
-        
-            # Convert color space from BGR to RGB for Streamlit
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
+
+            # Convert color space from BGR to RGB for Streamlit display
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Display the image using Streamlit
-            st.image(image)
+            st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
             
-            #st.image(image, caption="Uploaded Image", use_column_width=True)
-            image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
-                        
             if st.button("Scan QR Code"):
                 qr_data = scan_qr(image)
                 
