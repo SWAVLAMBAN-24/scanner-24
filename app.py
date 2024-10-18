@@ -5,8 +5,8 @@ from github import Github
 import pandas as pd
 import io
 from datetime import datetime
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import re
+from streamlit_javascript import st_javascript
 
 # GitHub token setup
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
@@ -23,29 +23,11 @@ CSV_PATH = "qr_data.csv"
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
-class VideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        self.qr_detector = cv2.QRCodeDetector()
-
-    def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        # Detect QR code
-        data, bbox, _ = self.qr_detector.detectAndDecode(img)
-        # If QR code is detected, store it in session state
-        if data:
-            st.session_state.qr_data = data
-        return img
-
 def scan_qr(image):
-    # Convert to grayscale for better detection
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # Initialize QR Code detector
     qr_detector = cv2.QRCodeDetector()
-    # Detect and decode
     data, bbox, _ = qr_detector.detectAndDecode(gray)
-    if data:
-        return data
-    return None
+    return data if data else None
 
 def update_database(data):
     try:
@@ -125,17 +107,58 @@ def main():
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
-            # Read the file bytes once
             file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            # Decode the image using OpenCV
             image = cv2.imdecode(file_bytes, 1)
-
-            # Convert color space from BGR to RGB for proper display
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # Display the image using Streamlit
             st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
             qr_data = scan_qr(image)
             if qr_data:
+                st.success(f"QR Code scanned successfully: {qr_data}")
+                try:
+                    success, message = update_database(qr_data)
+                    if success:
+                        st.success(message)
+                    else:
+                        st.warning(message)
+                except Exception as e:
+                    st.error(f"Failed to update database: {str(e)}")
+            else:
+                st.error("No QR code found in the image.")    
+                
+    else:
+        st.write("Start scanning using your camera below:")
+        
+        # JavaScript to access the camera and capture image
+        js_code = """
+        async function getCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            await video.play();
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            stream.getTracks().forEach(track => track.stop());
+            return canvas.toDataURL('image/jpeg');
+        }
+        const result = await getCamera();
+        return result;
+        """
+        
+        if st.button("Capture QR Code"):
+            result = st_javascript(js_code)
+            if result:
+                # Convert base64 to image
+                img_data = re.sub('^data:image/.+;base64,', '', result)
+                img_bytes = base64.b64decode(img_data)
+                img_array = np.frombuffer(img_bytes, dtype=np.uint8)
+                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+                
+                qr_data = scan_qr(img)
+                if qr_data:
                     st.success(f"QR Code scanned successfully: {qr_data}")
                     try:
                         success, message = update_database(qr_data)
@@ -145,36 +168,8 @@ def main():
                             st.warning(message)
                     except Exception as e:
                         st.error(f"Failed to update database: {str(e)}")
-            else:
-                st.error("No QR code found in the image.")    
-                
-    else:
-        st.write("Start scanning using your camera below:")
-        
-        result = webrtc_streamer(
-            key="example",
-            mode=WebRtcMode.SENDRECV,
-            video_transformer_factory=VideoTransformer,
-            async_transform=True,
-            media_stream_constraints={
-                "video": {"facingMode": "environment"},  # Use the back camera by default
-                "audio": False
-            }
-        )
-
-        if result and "qr_data" in st.session_state and st.session_state.qr_data:
-            qr_data = st.session_state.qr_data
-            st.success(f"QR Code scanned successfully: {qr_data}")
-            if st.button("Update Database with QR Code"):
-                try:
-                    success, message = update_database(qr_data)
-                    if success:
-                        st.success(message)
-                        del st.session_state.qr_data  # Clear QR code data after successful update
-                    else:
-                        st.warning(message)
-                except Exception as e:
-                    st.error(f"Failed to update database: {str(e)}")
+                else:
+                    st.error("No QR code found in the captured image.")
 
     if st.button("Display Results"):
         display_results()
