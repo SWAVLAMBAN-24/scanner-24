@@ -101,8 +101,22 @@ def process_image(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     qr_data = scan_qr(image)
     if qr_data:
-        st.success(f"QR Code scanned successfully: {qr_data}")
         try:
+            # Extract the relevant fields
+            match = re.match(r"Name:\s*(.*)\s+ID Type:\s*(.*)\s+ID Number:\s*(.*)\s+Pass Type:\s*(.*)", qr_data)
+            if match:
+                name, id_type, id_number, pass_type = match.groups()
+                
+                # Display each field on a separate line
+                st.success("QR Code scanned successfully:")
+                st.write(f"**Name:** {name}")
+                st.write(f"**ID Type:** {id_type}")
+                st.write(f"**ID Number:** {id_number}")
+                st.write(f"**Pass Type:** {pass_type}")
+            else:
+                st.error("Invalid QR code format. Could not extract all required fields.")
+
+            # Update the database
             success, message = update_database(qr_data)
             if success:
                 st.success(message)
